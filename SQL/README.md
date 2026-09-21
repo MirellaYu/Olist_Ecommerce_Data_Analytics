@@ -121,6 +121,7 @@ ORDER BY COUNT(ord.order_id) DESC;
 | MG             |        11,635 |
 | RS             |         5,466 |
 | PR             |         5,045 |
+
 Representan los cinco estados que concentran una parte importante del volumen total registradas en el dataset.
 
 ## Q9. 
