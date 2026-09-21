@@ -199,34 +199,356 @@ ORDER BY Productos_Vendidos DESC;
 |       4 | Moveis Decoracao       |              8,334 |
 |       5 | Informatica Acessorios |              7,827 |
 
-**Hallazgos:** Cama, Mesa y Baño lidera el volumen de productos vendidos con **11,115 unidades**, seguida por Belleza y Salud con 9,970 y Deporte y ocio con 8,641.
+**Hallazgos:** **Cama, Mesa y Baño** lidera el volumen de productos vendidos con **11,115 unidades**, seguida por **Belleza y Salud** con **9,970** y **Deporte y ocio** con **8,641**.
 
 **Insight:** **Cama, Mesa y Baño concentra el mayor volumen de productos comercializados**, por lo que representa una categoría relevante para monitorear su comportamiento y evolución.
 
-## Q12. 
+## Q12. ¿Cuáles son las 5 categorías con mayor cantidad de pedidos?
+
+```sql
+SELECT TOP 5
+       pro.product_category_name AS Categoria,
+       COUNT(DISTINCT ord.order_id) AS "Cantidad de pedidos"
+FROM dbo.olist_order_items_dataset_clean$ AS ord
+INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+    ON ord.product_id = pro.product_id
+GROUP BY pro.product_category_name
+ORDER BY COUNT(DISTINCT ord.order_id) DESC;
+```
+| Ranking | Categoría              | Cantidad de pedidos |
+| ------: | ---------------------- | ------------------: |
+|       1 | Cama Mesa Banho        |           **9,417** |
+|       2 | Beleza Saude           |           **8,836** |
+|       3 | Esporte Lazer          |           **7,720** |
+|       4 | Informatica Acessorios |           **6,689** |
+|       5 | Moveis Decoracao       |           **6,449** |
+
+**Hallazgos:** **Cama, Mesa y Baño** registra la mayor cantidad de pedidos, con **9,417**, seguida de **Belleza y Salud** con **8,836** y **Deporte y ocio** con **7,720**. **Accesorios de informática** y **Muebles y decoración** completan las cinco categorías con mayor volumen de pedidos.
+
+**Insight:** Las categorías con mayor presencia en los pedidos se concentran principalmente en **Cama, Mesa y Baño** y **Belleza y Salud**, lo que evidencia una mayor frecuencia de compra en estas categorías.
+
+## Q13. ¿Cuáles son las 5 categorías que generan mayores ingresos?
+
+```sql
+SELECT TOP 5
+       pro.product_category_name AS Categoria,
+       SUM(ord.price) AS Suma
+FROM dbo.olist_order_items_dataset_clean$ AS ord
+INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+ON ord.product_id = pro.product_id
+GROUP BY pro.product_category_name
+ORDER BY SUM(ord.price) DESC;
+```
+| Ranking | Categoría              |          Ingresos |
+| ------: | ---------------------- | ----------------: |
+|       1 | Beleza Saude           | **$1,258,681.34** |
+|       2 | Relogios Presentes     | **$1,205,005.68** |
+|       3 | Cama Mesa Banho        | **$1,036,988.68** |
+|       4 | Esporte Lazer          |   **$988,048.97** |
+|       5 | Informatica Acessorios |   **$911,954.32** |
+
+**Hallazgos:** **Belleza y Salud** genera los mayores ingresos, con **$1.26 millones**, seguida de **Relojes y Regalos** con **$1.21 millones** y **Ropa de Cama, Mesa y Baño** con **$1.04 millones**. **Deporte y Ocio** e **Informática y Accesorios** completan el top 5.
+**Insight:** Las cinco categorías concentran un volumen importante de ingresos dentro del marketplace, destacando Belleza y Salud y Relojes como las categorías con mayor valor de ventas.
+
+## Q14. ¿Qué 5 categorías tienen mayor participación en los ingresos?
+
+```sql
+SELECT TOP 5
+       Categorias.product_category_name AS Categoria,
+       Categorias.Ingresos,
+       (Categorias.Ingresos/ 
+              (SELECT SUM(price)
+               FROM dbo.olist_order_items_dataset_clean$)
+       ) * 100 AS Participacion
+FROM( SELECT pro.product_category_name,
+             SUM(ord.price) AS Ingresos
+      FROM dbo.olist_order_items_dataset_clean$ AS ord
+      INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+      ON ord.product_id = pro.product_id
+      GROUP BY pro.product_category_name
+      
+) AS Categorias
+ORDER BY Categorias.Ingresos DESC;
+```
+| Ranking | Categoría              |          Ingresos | Participación |
+| ------: | ---------------------- | ----------------: | ------------: |
+|       1 | Beleza Saude           | **$1,258,681.34** |     **9.26%** |
+|       2 | Relogios Presentes     | **$1,205,005.68** |     **8.87%** |
+|       3 | Cama Mesa Banho        | **$1,036,988.68** |     **7.63%** |
+|       4 | Esporte Lazer          |   **$988,048.97** |     **7.27%** |
+|       5 | Informatica Acessorios |   **$911,954.32** |     **6.71%** |
+
+**Hallazgos:** **Belleza y Salud** presenta la mayor participación en los ingresos, con **9.26%** del total, seguida de **Relojes y Regalos** con **8.87%** y **Ropa de Cama, Mesa y Baño** con **7.63%**. Las cinco principales categorías concentran participaciones individuales de entre **6.71% y 9.26%**.
+
+**Insight:** Las categorías con mayor participación representan una parte relevante de los ingresos, destacando **Belleza y Salud** y **Relojes y Regalos** por su mayor contribución individual al ingreso total.
+
+## Q15. ¿Cuáles son las 3 principales categorías por ingresos de cada mes?
+
+```sql
+WITH cte_PIngresos AS(
+     SELECT YEAR(ord.order_purchase_timestamp) AS Año,
+       MONTH(ord.order_purchase_timestamp) AS Mes,
+       pro.product_category_name AS Categoria,
+       SUM(det.price) AS Ingreso
+     FROM dbo.olist_orders_dataset_clean$ AS ord
+     INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
+     ON ord.order_id = det.order_id
+     INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+     ON det.product_id = pro.product_id
+     GROUP BY YEAR(ord.order_purchase_timestamp),
+              MONTH(ord.order_purchase_timestamp),
+              pro.product_category_name
+),
+cte_Ranking AS(
+     SELECT *,
+            RANK() OVER(PARTITION BY Año, Mes ORDER BY INGRESO DESC) AS Ranking
+     FROM cte_PIngresos
+)
+SELECT *
+FROM cte_Ranking
+WHERE Ranking <= 3
+ORDER BY Año,Mes;
+```
+**Hallazgo:** Las categorías líderes varían según el mes. Durante 2017, diferentes categorías ocuparon el primer lugar, destacando **Relojes y Regalos** en Noviembre con **$97,724.57**. En 2018, se observa una mayor presencia de **Belleza y Salud** y R**Relojes y Regalos** entre las categorías con mayores ingresos, alcanzando **Belleza y Salud** con **$120,803.94** en Agosto y **Relojes y Regalos** con **$123,872.66** en Mayo.
+
+**Insight:** El ranking mensual evidencia que la composición de las categorías con mayores ingresos no es constante y cambia a lo largo del período. Sin embargo, **Belleza y Salud**, **Relojes y Regalos**, **Ropa de Cama, Mesa y Baño**, **Deporte y Ocio** e **Informática y Accesorios** aparecen recurrentemente entre las principales categorías, por lo que representan segmentos relevantes para el seguimiento mensual de ingresos.
+
+## Q16. ¿Cuántos clientes únicos realizaron compras?
+
+```sql
+SELECT COUNT(DISTINCT c.customer_unique_id) AS Cantidad
+FROM dbo.olist_orders_dataset_clean$ AS o
+INNER JOIN dbo.olist_customers_dataset_clean$ AS c
+    ON o.customer_id = c.customer_id;
+```
+| Cantidad | 
+| -------: |
+|  96096   |
+
+**Hallazgo:** Se identificaron **96,096 clientes únicos** que realizaron al menos una compra durante el período analizado, utilizando customer_unique_id para evitar contabilizar varias veces a un mismo cliente.
+
+## Q17. ¿Cuántos clientes nuevos hubo por mes?
+
+```sql
+WITH cte_PrimeraCompra AS(
+     SELECT 
+           c.customer_unique_id,
+           MIN(o.order_purchase_timestamp) AS PrimeraCompra
+     FROM dbo.olist_orders_dataset_clean$ AS o
+     INNER JOIN dbo.olist_customers_dataset_clean$ c
+     ON o.customer_id = c.customer_id
+     GROUP BY customer_unique_id
+)
+SELECT YEAR(PrimeraCompra) AS Año,
+       MONTH(PrimeraCompra) AS Mes,
+       COUNT(customer_unique_id) AS "Clientes Nuevos"
+FROM cte_PrimeraCompra
+GROUP BY
+    YEAR(PrimeraCompra),
+    MONTH(PrimeraCompra)
+ORDER BY Año, Mes;
+```
+**Hallazgo:** Los clientes nuevos alcanzan su **máximo en Noviembre de 2017**, con **7,304 clientes**, y se mantienen en niveles elevados durante Enero-Agosto de 2018. Septiembre y Octubre de 2018 presentan valores atípicamente bajos.
+
+**Insight:** La captación de clientes muestra un crecimiento importante entre 2017 y 2018, aunque los últimos registros de 2018 deben validarse antes de interpretar la tendencia final.
+
+## Q18. ¿Cuántos clientes realizaron una sola compra?
+
+```sql
+SELECT COUNT(*) AS "Clientes con una sola compra"
+FROM (
+    SELECT
+        c.customer_unique_id,
+        COUNT(o.order_id) AS CantidadPedidos
+    FROM dbo.olist_orders_dataset_clean$ o
+    INNER JOIN dbo.olist_customers_dataset_clean$ c
+        ON o.customer_id = c.customer_id
+    GROUP BY c.customer_unique_id
+    HAVING COUNT(o.order_id) = 1
+) AS ClientesUnaCompra;
+
+```
+| Clientes con una sola compra | 
+| ---------------------------: |
+|             93099            |
+
+**Hallazgo:** De los 96,096 clientes únicos, **93,099 realizaron una sola compra**, lo que representa aproximadamente el **96.9%** del total.
+
+**Insight:** La elevada proporción de clientes con una única compra evidencia una baja recurrencia dentro del período analizado, aspecto relevante para evaluar posteriormente la retención y fidelización de clientes.
+
+## Q19. ¿Cuántos clientes son recurrentes?
+
+```sql
+SELECT COUNT(*) AS "Clientes recurrentes"
+FROM (
+    SELECT
+        c.customer_unique_id,
+        COUNT(o.order_id) AS CantidadPedidos
+    FROM dbo.olist_orders_dataset_clean$ o
+    INNER JOIN dbo.olist_customers_dataset_clean$ c
+        ON o.customer_id = c.customer_id
+    GROUP BY c.customer_unique_id
+    HAVING COUNT(o.order_id) > 1
+) AS ClientesRecurrentes;
+```
+
+| Clientes recurrentes | 
+| -------------------: |
+|         2997         |
+
+**Hallazgo:** De los **96,096 clientes únicos**, **2,997 realizaron más de una compra**, equivalente aproximadamente al **3.1%** del total.
+
+**Insight:** La proporción de clientes recurrentes es reducida frente al total de clientes, lo que evidencia una baja recurrencia de compra durante el período analizado.
+
+## Q20. ¿Cómo se distribuyen los clientes según su gasto?
+
+```sql
+WITH cte_GastoClientes AS (
+    SELECT 
+        c.customer_unique_id,
+        SUM(det.price) AS GastoTotal
+    FROM dbo.olist_orders_dataset_clean$ AS ord
+    INNER JOIN dbo.olist_customers_dataset_clean$ AS c
+        ON ord.customer_id = c.customer_id
+    INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
+        ON ord.order_id = det.order_id
+    GROUP BY c.customer_unique_id
+),
+cte_Percentiles AS (
+    SELECT DISTINCT
+        PERCENTILE_CONT(0.25)
+            WITHIN GROUP (ORDER BY GastoTotal)
+            OVER () AS P25,
+
+        PERCENTILE_CONT(0.75)
+            WITHIN GROUP (ORDER BY GastoTotal)
+            OVER () AS P75
+    FROM cte_GastoClientes
+),
+cte_Segmentacion AS (
+    SELECT
+        g.customer_unique_id,
+        g.GastoTotal,
+        p.P25,
+        p.P75,
+        CASE
+            WHEN g.GastoTotal <= p.P25 THEN 'Bajo'
+            WHEN g.GastoTotal <= p.P75 THEN 'Medio'
+            ELSE 'Alto'
+        END AS Segmento
+    FROM cte_GastoClientes AS g
+    CROSS JOIN cte_Percentiles AS p
+)
+SELECT
+    Segmento,
+    COUNT(*) AS Cantidad,
+    MIN(GastoTotal) AS Gasto_Minimo,
+    MAX(GastoTotal) AS Gasto_Maximo
+FROM cte_Segmentacion
+GROUP BY Segmento
+ORDER BY
+    CASE Segmento
+        WHEN 'Bajo' THEN 1
+        WHEN 'Medio' THEN 2
+        WHEN 'Alto' THEN 3
+    END;
+```
+| Segmento | Cantidad de clientes | Gasto mínimo | Gasto máximo |
+| -------- | -------------------: | -----------: | -----------: |
+| Bajo     |               23,984 |        $0.85 |       $47.90 |
+| Medio    |               47,600 |       $47.91 |      $155.00 |
+| Alto     |               23,836 |      $155.06 |   $13,440.00 |
+
+**Hallazgo:** El segmento **Medio** concentra la mayor cantidad de clientes, con **47,600** representando un **49.5%**, seguido de **Bajo con 23,984** representando un **25.0%** y **Alto con 23,836** representando un **24.8%**. El gasto máximo registrado en el segmento Alto alcanza $13,440.
+
+**Insight:** La distribución muestra una concentración de clientes en el segmento de gasto Medio, mientras que el segmento Alto presenta una mayor amplitud en el valor gastado, reflejando diferencias importantes en el comportamiento de compra.
+
+## Q21. 
 
 ```sql
 
 ```
-**Hallazgos:** 
+**Hallazgo:**
 
-## Q13. 
+**Insight:**
 
-```sql
-
-```
-**Hallazgos:** 
-
-## Q14. 
+## Q22. 
 
 ```sql
 
 ```
-**Hallazgos:** 
+**Hallazgo:**
 
-## Q15. 
+**Insight:**
+
+## Q23. 
 
 ```sql
 
 ```
-**Hallazgos:** 
+**Hallazgo:**
+
+**Insight:**
+
+## Q24. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q25. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q26. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q27. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q28. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q29. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
+
+## Q30. 
+
+```sql
+
+```
+**Hallazgo:**
+
+**Insight:**
