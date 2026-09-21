@@ -391,7 +391,6 @@ FROM (
     HAVING COUNT(o.order_id) > 1
 ) AS ClientesRecurrentes;
 ```
-
 | Clientes recurrentes | 
 | -------------------: |
 |         2997         |
@@ -464,92 +463,311 @@ ORDER BY
 
 **Insight:** La distribución muestra una segmentación equilibrada entre los niveles Bajo y Alto, mientras que la mitad de los clientes se concentra en el segmento Medio. Esta clasificación permite diferenciar grupos según su nivel de gasto y facilita posteriores análisis de comportamiento y valor de clientes.
 
-## Q21. 
+## Q21. ¿Cuántos vendedores realizaron ventas?
+
+```sql
+SELECT COUNT(DISTINCT seller_id) AS "N° Vendedores"
+FROM dbo.olist_order_items_dataset_clean$;
+```
+| N° Vendedores | 
+| ------------: |
+|     3095      |
+
+**Hallazgo:** Se identificaron **3,095 vendedores** que realizaron al menos una venta durante el período analizado.
+
+## Q22. ¿Cuáles son los 6 vendedores que generan mayores ingresos?
+
+```sql
+SELECT TOP 6
+       ven.seller_id,
+       ven.seller_city AS Ciudad,
+       ven.seller_state AS Estado,
+       SUM(ord.price) AS Ingreso
+FROM dbo.olist_order_items_dataset_clean$ AS ord
+INNER JOIN dbo.olist_sellers_dataset_clean$ AS ven
+ON ord.seller_id = ven.seller_id
+GROUP BY ven.seller_id, 
+         ven.seller_city, 
+         ven.seller_state
+ORDER BY SUM(ord.price) DESC;
+```
+| Ranking | Ciudad           | Estado |        Ingresos |
+| ------: | ---------------- | ------ | --------------: |
+|       1 | Guariba          | SP     | **$229,472.63** |
+|       2 | Lauro De Freitas | BA     | **$222,776.05** |
+|       3 | Ibitinga         | SP     | **$200,472.92** |
+|       4 | Sumare           | SP     | **$194,042.03** |
+|       5 | Itaquaquecetuba  | SP     | **$187,923.89** |
+|       6 | Barueri          | SP     | **$176,431.87** |
+
+**Hallazgo:** Los seis vendedores con mayores ingresos registran valores entre **$176,431.87** y **$229,472.63**. El vendedor ubicado en **Guariba (SP)** ocupa el primer lugar con **$229,472.63**, seguido por un vendedor de **Lauro De Freitas (BA)** con **$222,776.05**. Cuatro de los seis vendedores principales se encuentran en el estado de São Paulo.
+
+**Insight:** Los mayores ingresos se concentran principalmente en vendedores ubicados en **São Paulo**, aunque también destaca un vendedor de **Lauro De Freitas (BA)**.
+
+## Q23. ¿Cuáles son los 5 vendedores tienen mayor cantidad de pedidos?
+
+```sql
+SELECT TOP 5
+       ven.seller_city AS Ciudad,
+       ven.seller_state AS Estado,
+       COUNT(DISTINCT ord.order_id) AS Cantidad
+FROM dbo.olist_order_items_dataset_clean$ AS ord
+INNER JOIN dbo.olist_sellers_dataset_clean$ AS ven
+ON ord.seller_id = ven.seller_id
+GROUP BY ven.seller_id, 
+         ven.seller_city, 
+         ven.seller_state
+ORDER BY COUNT(DISTINCT ord.order_id) DESC;
+```
+| Ranking | Ciudad                | Estado | Cantidad de pedidos |
+| ------: | --------------------- | ------ | ------------------: |
+|       1 | Sao Paulo             | SP     |           **1,854** |
+|       2 | Ibitinga              | SP     |           **1,806** |
+|       3 | Santo Andre           | SP     |           **1,706** |
+|       4 | Sao Jose Do Rio Preto | SP     |           **1,404** |
+|       5 | Piracicaba            | SP     |           **1,314** |
+
+**Hallazgo:** Los cinco vendedores con mayor cantidad de pedidos registran entre **1,314** y **1,854 pedidos**. El vendedor ubicado en **Sao Paulo (SP)** ocupa el primer lugar con **1,854 pedidos**, seguido de **Ibitinga** con **1,806 pedidos** y **Santo Andre** con **1,706 pedidos**. Los cinco vendedores pertenecen al estado de São Paulo.
+
+**Insight:** Los vendedores con mayor volumen de pedidos presentan una marcada concentración geográfica en São Paulo, lo que evidencia que este estado reúne a los vendedores con mayor cantidad de pedidos dentro del top 5 analizado.
+
+## Q24. ¿Qué porcentaje de los ingresos totales generan los 5 principales vendedores?
+
+```sql
+WITH cte_IngresosPorVendedor AS(
+     SELECT 
+            ven.seller_city AS Ciudad,
+            ven.seller_state AS Estado,
+            SUM(ord.price) AS Ingreso
+     FROM dbo.olist_order_items_dataset_clean$ AS ord
+     INNER JOIN dbo.olist_sellers_dataset_clean$ AS ven
+     ON ord.seller_id = ven.seller_id
+     GROUP BY ven.seller_id, 
+              ven.seller_city, 
+              ven.seller_state
+)
+SELECT TOP 5
+       *,
+       Ingreso /
+       (SELECT SUM(price) AS TOTAL
+        FROM dbo.olist_order_items_dataset_clean$ )*100 AS Porcentaje
+FROM cte_IngresosPorVendedor
+ORDER BY Porcentaje DESC;
+```
+|         Ranking | Ciudad           | Estado |          Ingresos | Participación |
+| --------------: | ---------------- | ------ | ----------------: | ------------: |
+|               1 | Guariba          | SP     |   **$229,472.63** |     **1.69%** |
+|               2 | Lauro De Freitas | BA     |   **$222,776.05** |     **1.64%** |
+|               3 | Ibitinga         | SP     |   **$200,472.92** |     **1.47%** |
+|               4 | Sumare           | SP     |   **$194,042.03** |     **1.43%** |
+|               5 | Itaquaquecetuba  | SP     |   **$187,923.89** |     **1.38%** |
+
+**Hallazgo:** Los cinco principales vendedores generan conjuntamente **$1.03 millones**, equivalentes aproximadamente al **7.61% de los ingresos totales**. De manera individual, su participación oscila entre **1.38%** y **1.69%**, siendo el vendedor ubicado en **Guariba (SP)** quien presenta la mayor contribución, con **1.69%**.
+
+**Insight:** Los ingresos presentan una distribución relativamente diversificada entre los vendedores, ya que los cinco principales concentran aproximadamente **7.61% del ingreso total**, mientras que el porcentaje restante corresponde al resto de vendedores.
+
+## Q25. ¿Cuáles son los 5 estados que concentran mayor cantidad de clientes?
+
+```sql
+SELECT  TOP 5
+        customer_state AS Estados,
+        COUNT(DISTINCT customer_unique_id) AS Cantidad
+FROM dbo.olist_customers_dataset_clean$
+GROUP BY customer_state
+ORDER BY Cantidad DESC;
+```
+| Ranking | Estado | Clientes únicos |
+| ------: | ------ | --------------: |
+|       1 | SP     |      **40,302** |
+|       2 | RJ     |      **12,384** |
+|       3 | MG     |      **11,259** |
+|       4 | RS     |       **5,277** |
+|       5 | PR     |       **4,882** |
+
+**Hallazgo:** **São Paulo (SP)** concentra la mayor cantidad de clientes únicos, con **40,302 clientes**, seguido de **Río de Janeiro (RJ) con 12,384 clientes** y **Minas Gerais (MG) con 11,259 clientes**. Rio Grande do Sul (RS) y Paraná (PR) completan los cinco estados con mayor cantidad de clientes.
+
+**Insight:** La distribución de clientes presenta una marcada concentración en São Paulo, que reúne una cantidad de clientes considerablemente superior a los demás estados del top 5. Esto identifica a SP como el principal mercado geográfico por número de clientes dentro del período analizado.
+
+## Q26. ¿Cuáles son los 5 estados que concentran mayor cantidad de pedidos e ingresos?
+
+```sql
+SELECT TOP 5
+       cli.customer_state AS Estados,
+       COUNT(DISTINCT ord.order_id) AS Cantidad_Pedidos,
+       SUM(det.price) AS Ingresos
+FROM dbo.olist_orders_dataset_clean$ AS ord
+INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
+ON ord.customer_id = cli.customer_id
+INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
+ON ord.order_id = det.order_id
+GROUP BY cli.customer_state
+ORDER BY Cantidad_Pedidos DESC, Ingresos DESC;
+```
+| Ranking | Estado | Cantidad de pedidos |          Ingresos |
+| ------: | ------ | ------------------: | ----------------: |
+|       1 | SP     |          **41,375** | **$5,202,955.05** |
+|       2 | RJ     |          **12,762** | **$1,824,092.67** |
+|       3 | MG     |          **11,544** | **$1,585,308.03** |
+|       4 | RS     |           **5,432** |   **$750,304.02** |
+|       5 | PR     |           **4,998** |   **$683,083.76** |
+
+**Hallazgo:** **São Paulo (SP)** concentra el mayor volumen de pedidos, con **41,375 pedidos**, y también registra los mayores ingresos, con aproximadamente **$5.20 millones**. Le siguen **Río de Janeiro (RJ)** y **Minas Gerais (MG)**, tanto en cantidad de pedidos como en ingresos. Los cinco estados del ranking presentan una correspondencia entre mayor volumen de pedidos y mayor nivel de ingresos.
+
+**Insight:** Los resultados muestran una concentración geográfica de la actividad comercial en los principales estados del ranking. São Paulo destaca por reunir simultáneamente el mayor volumen de pedidos y de ingresos, mientras que los demás estados presentan niveles progresivamente menores en ambas métricas.
+
+## Q27. ¿Cuáles son los 5 estados que concentran mayor cantidad de vendedores?
+
+```sql
+SELECT  TOP 5
+        seller_state AS Estados,
+        COUNT(seller_id) AS Cantidad
+FROM dbo.olist_sellers_dataset_clean$
+GROUP BY seller_state
+ORDER BY COUNT(seller_id) DESC;
+```
+| Ranking | Estado | Cantidad de vendedores |
+| ------: | ------ | ---------------------: |
+|       1 | SP     |              **1,849** |
+|       2 | PR     |                **349** |
+|       3 | MG     |                **244** |
+|       4 | SC     |                **190** |
+|       5 | RJ     |                **171** |
+
+**Hallazgo:** **São Paulo (SP)** concentra la mayor cantidad de vendedores, con **1,849**, seguido de **Paraná (PR)** con **349** y **Minas Gerais (MG)** con **244**. **Santa Catarina (SC)** y **Río de Janeiro (RJ)** completan el top 5 con **190 y 171 vendedores**, respectivamente.
+
+**Insight:** La distribución de vendedores presenta una marcada concentración en São Paulo, que reúne una cantidad considerablemente superior de vendedores respecto a los demás estados del top 5.
+
+## Q28. ¿Cuáles son los 5 estados que presentan alta demanda frente a una baja oferta de vendedores?
+
+```sql
+WITH cte_PedidosEstado AS(
+       SELECT cli.customer_state AS Estado,
+              COUNT(DISTINCT ord.order_id) AS "N° Pedidos"
+              
+       FROM dbo.olist_orders_dataset_clean$ AS ord
+       INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
+       ON ord.customer_id = cli.customer_id 
+       GROUP BY cli.customer_state
+),
+cte_VendedoresEstado AS(
+       SELECT ven.seller_state AS Estado,
+              COUNT(DISTINCT det.seller_id) AS "N° Vendedores"
+       FROM dbo.olist_order_items_dataset_clean$ AS det
+       INNER JOIN dbo.olist_sellers_dataset_clean$ AS ven
+       ON det.seller_id = ven.seller_id
+       GROUP BY ven.seller_state
+)
+SELECT TOP 5
+       Es_pe.Estado,
+       "N° Pedidos",
+       "N° Vendedores",
+       CAST("N° Pedidos" AS DECIMAL(10,2)) / "N° Vendedores" AS Demanda_por_vendedor
+FROM cte_PedidosEstado AS Es_pe
+INNER JOIN cte_VendedoresEstado AS Es_ven
+ON Es_pe.Estado = Es_ven.Estado
+ORDER BY Demanda_por_vendedor DESC;
+```
+| Ranking | Estado | Pedidos | Vendedores | Pedidos por vendedor |
+| ------: | ------ | ------: | ---------: | -------------------: |
+|       1 | PA     |     975 |          1 |           **975.00** |
+|       2 | MA     |     747 |          1 |           **747.00** |
+|       3 | PI     |     495 |          1 |           **495.00** |
+|       4 | MT     |     907 |          4 |           **226.75** |
+|       5 | PE     |   1,652 |          9 |           **183.56** |
+
+**Hallazgo:** **Pará (PA)** presenta la mayor relación pedidos/vendedor, con **975**, seguido de **Maranhão (MA)** con **747** y **Piauí (PI)** con **495**.
+
+**Insight:** Los resultados identifican estados con alta demanda relativa frente a una baja oferta de vendedores. Sin embargo, los primeros puestos corresponden a estados con muy pocos vendedores, por lo que este indicador debe analizarse junto con el volumen absoluto de pedidos.
+
+## Q29. ¿Cuál es el tiempo promedio de entrega de los pedidos entregados?
+
+```sql
+SELECT AVG(DATEDIFF(
+                DAY,
+                order_purchase_timestamp,
+                order_delivered_customer_date)
+          ) AS "Tiempo Promedio de Entrega (días)"
+FROM dbo.olist_orders_dataset_clean$
+WHERE order_delivered_customer_date IS NOT NULL;
+```
+**Hallazgo:** El tiempo promedio de entrega de los pedidos con fecha de entrega registrada es de **12 días** desde la compra hasta la entrega al cliente.
+
+## Q30. ¿Qué porcentaje de los pedidos entregados presentó retraso respecto a la fecha estimada?
+
+```sql
+SELECT *,
+       CAST(Entrega_Tarde AS DECIMAL(10,2)) 
+       / NULLIF(Pedidos_Entregados, 0) * 100 AS Porcentaje
+FROM (
+    SELECT
+        SUM(
+            CASE
+                WHEN order_delivered_customer_date > order_estimated_delivery_date
+                THEN 1
+                ELSE 0
+            END
+        ) AS Entrega_Tarde,
+
+        COUNT(order_delivered_customer_date) AS Pedidos_Entregados
+    FROM dbo.olist_orders_dataset_clean$
+    WHERE order_delivered_customer_date IS NOT NULL
+      AND order_estimated_delivery_date IS NOT NULL
+) AS Entregas;
+```
+| Entrega_Tarde | Pedidos_Entregados | Porcentaje_Retrasos |
+| ------------: | -----------------: | ------------------: |
+|         7,827 |             96,476 |           **8.11%** |
+
+**Hallazgo:** De los **96,476 pedidos entregados**, **7,827 presentaron retraso** respecto a la fecha estimada, equivalente al **8.11%**.
+
+**Insight:** La mayoría de los pedidos se entregó dentro o antes de la fecha estimada, mientras que aproximadamente 8 de cada 100 pedidos registraron retraso.
+
+## Q31. 
 
 ```sql
 
 ```
+
 **Hallazgo:**
 
 **Insight:**
 
-## Q22. 
+## Q32. 
 
 ```sql
 
 ```
+
 **Hallazgo:**
 
 **Insight:**
 
-## Q23. 
+## Q33. 
 
 ```sql
 
 ```
+
 **Hallazgo:**
 
 **Insight:**
 
-## Q24. 
+## Q34. 
 
 ```sql
 
 ```
+
 **Hallazgo:**
 
 **Insight:**
 
-## Q25. 
+## Q35. 
 
 ```sql
 
 ```
-**Hallazgo:**
 
-**Insight:**
-
-## Q26. 
-
-```sql
-
-```
-**Hallazgo:**
-
-**Insight:**
-
-## Q27. 
-
-```sql
-
-```
-**Hallazgo:**
-
-**Insight:**
-
-## Q28. 
-
-```sql
-
-```
-**Hallazgo:**
-
-**Insight:**
-
-## Q29. 
-
-```sql
-
-```
-**Hallazgo:**
-
-**Insight:**
-
-## Q30. 
-
-```sql
-
-```
 **Hallazgo:**
 
 **Insight:**
