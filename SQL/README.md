@@ -455,13 +455,14 @@ ORDER BY
 ```
 | Segmento | Cantidad de clientes | Gasto mínimo | Gasto máximo |
 | -------- | -------------------: | -----------: | -----------: |
-| Bajo     |               23,984 |        $0.85 |       $47.90 |
-| Medio    |               47,600 |       $47.91 |      $155.00 |
-| Alto     |               23,836 |      $155.06 |   $13,440.00 |
+| Bajo     |               24,025 |        $0.00 |       $63.12 |
+| Medio    |               48,049 |       $63.13 |      $183.53 |
+| Alto     |               24,021 |      $183.54 |   $13,664.08 |
 
-**Hallazgo:** El segmento **Medio** concentra la mayor cantidad de clientes, con **47,600** representando un **49.5%**, seguido de **Bajo con 23,984** representando un **25.0%** y **Alto con 23,836** representando un **24.8%**. El gasto máximo registrado en el segmento Alto alcanza $13,440.
 
-**Insight:** La distribución muestra una concentración de clientes en el segmento de gasto Medio, mientras que el segmento Alto presenta una mayor amplitud en el valor gastado, reflejando diferencias importantes en el comportamiento de compra.
+**Hallazgo:** El segmento **Medio** concentra la mayor cantidad de clientes, con **48,049** representando un **50.0%**, seguido de **Bajo con 24,025** representando un **25.0%** y **Alto con 24,021** representando un **25.0%**. El gasto acumulado por cliente oscila entre **$0 y $13,664.08**, con puntos de corte de **$63.12 y $183.53** para los segmentos Bajo, Medio y Alto.
+
+**Insight:** La distribución muestra una segmentación equilibrada entre los niveles Bajo y Alto, mientras que la mitad de los clientes se concentra en el segmento Medio. Esta clasificación permite diferenciar grupos según su nivel de gasto y facilita posteriores análisis de comportamiento y valor de clientes.
 
 ## Q21. 
 
