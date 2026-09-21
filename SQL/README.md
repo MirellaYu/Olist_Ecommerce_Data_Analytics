@@ -98,7 +98,7 @@ SELECT
 FROM cte_Variacion
 ORDER BY Año, Mes;
 ```
-**Hallazgos:** La variación mensual de los ingresos presenta fluctuaciones importantes, con el mayor crecimiento porcentual en enero de 2017**(+1,103,687.8%)** y el mayor incremento absoluto en noviembre de 2017 **(+$346,051.94; +52.10%)**. Durante 2017 y 2018 se alternan períodos de crecimiento y contracción.
+**Hallazgos:** La variación mensual de los ingresos presenta fluctuaciones importantes, con el mayor crecimiento porcentual en enero de 2017 **(+1,103,687.8%)** y el mayor incremento absoluto en noviembre de 2017 **(+$346,051.94; +52.10%)**. Durante **2017 y 2018** se alternan períodos de crecimiento y contracción.
 
 ## Q8. ¿Qué 5 estados concentran la mayor cantidad de pedidos?
 
@@ -112,7 +112,7 @@ ON ord.customer_id = cli.customer_id
 GROUP BY cli.customer_state
 ORDER BY COUNT(ord.order_id) DESC;
 ```
-**Hallazgos:** Los pedidos se concentran principalmente en **Sao Paulo (SP)**, con **41,746 pedidos**, seguidos por Río de Janeiro (RJ), Minas Gerais (MG), Rio Grande do Sul (RS) y Paraná (PR), evidenciando una fuerte concentración de la demanda en estos cinco estados.
+**Hallazgos:** Los pedidos se concentran principalmente en **Sao Paulo (SP)**, con **41,746 pedidos**, seguidos por **Río de Janeiro (RJ)**, **Minas Gerais (MG)**, **Rio Grande do Sul (RS)** y **Paraná (PR)**, evidenciando una fuerte concentración de la demanda en estos cinco estados.
 
 | customer_state | N° de pedidos |
 | -------------- | ------------: |
@@ -124,12 +124,29 @@ ORDER BY COUNT(ord.order_id) DESC;
 
 Representan los cinco estados que concentran una parte importante del volumen total registradas en el dataset.
 
-## Q9. 
+## Q9. ¿Cuáles son los 5 estados que generan mayores ingresos?
 
 ```sql
-
+SELECT TOP 5
+       cli.customer_state,
+       SUM(pay.payment_value) AS "Ingresos"
+FROM dbo.olist_orders_dataset_clean$ AS ord
+INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
+    ON ord.customer_id = cli.customer_id
+INNER JOIN dbo.olist_order_payments_datase_cle$ AS pay
+    ON ord.order_id = pay.order_id
+GROUP BY cli.customer_state
+ORDER BY SUM(pay.payment_value) DESC;
 ```
-**Hallazgos:** 
+| customer_state |      Ingresos |
+| -------------- | ------------: |
+| SP             | $5,998,226.96 |
+| RJ             | $2,144,379.69 |
+| MG             | $1,872,257.26 |
+| RS             |   $890,898.54 |
+| PR             |   $811,156.38 |
+
+**Hallazgos:** Los ingresos se concentran principalmente en **Sao Paulo (SP)** con aproximadamente **$6.0 millones**, seguido por **Río de Janeiro (RJ)** y **Minas Gerias (MG)**. Los cinco estados concentran una parte importante del valor total de pagos registrados.
 
 ## Q10. 
 
