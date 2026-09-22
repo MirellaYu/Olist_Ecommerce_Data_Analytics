@@ -212,17 +212,17 @@ ON ord.customer_id = cli.customer_id
 GROUP BY cli.customer_state
 ORDER BY COUNT(ord.order_id) DESC;
 
--- Q9. ¿Qué 5 estados generan mayores ingresos?
+-- Q9. ¿Cuáles son los 5 estados que generan mayores ingresos?
 SELECT TOP 5
        cli.customer_state,
-       SUM(det.price) AS "Suma de Ingresos"
+       SUM(pay.payment_value) AS "Ingresos"
 FROM dbo.olist_orders_dataset_clean$ AS ord
 INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
-ON ord.customer_id = cli.customer_id
-INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
-ON ord.order_id = det.order_id
+    ON ord.customer_id = cli.customer_id
+INNER JOIN dbo.olist_order_payments_datase_cle$ AS pay
+    ON ord.order_id = pay.order_id
 GROUP BY cli.customer_state
-ORDER BY SUM(det.price) DESC;
+ORDER BY SUM(pay.payment_value) DESC;
 
 -- Q10. ¿Qué formas de pago concentran mayor cantidad de transacciones?
 SELECT payment_type,
@@ -232,17 +232,27 @@ GROUP BY payment_type
 ORDER BY COUNT(payment_type) DESC;
 
 --PRODUCTOS Y CATEGORÍAS-------------------------------------
--- Q11.¿Cuáles son las 5 categorías con mayor volumen de productos vendidos?
+-- Q11. ¿Cuáles son las 5 categorías con mayor volumen de productos vendidos?
 SELECT TOP 5
        pro.product_category_name AS Categoria,
-       COUNT(ord.product_id) AS Cantidad
+       COUNT( ord.product_id) AS Productos_Vendidos
 FROM dbo.olist_order_items_dataset_clean$ AS ord
 INNER JOIN dbo.olist_products_dataset_clean$ AS pro
 ON ord.product_id = pro.product_id
 GROUP BY pro.product_category_name
-ORDER BY COUNT(ord.product_id) DESC;
+ORDER BY Productos_Vendidos DESC;
 
--- Q12. ¿Cuáles son las 5 categorías que generan mayores ingresos?
+-- Q12. ¿Cuáles son las 5 categorías con mayor cantidad de pedidos?
+SELECT TOP 5
+       pro.product_category_name AS Categoria,
+       COUNT(DISTINCT ord.order_id) AS "Cantidad de pedidos"
+FROM dbo.olist_order_items_dataset_clean$ AS ord
+INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+    ON ord.product_id = pro.product_id
+GROUP BY pro.product_category_name
+ORDER BY COUNT(DISTINCT ord.order_id) DESC;
+
+-- Q13. ¿Cuáles son las 5 categorías que generan mayores ingresos?
 SELECT TOP 5
        pro.product_category_name AS Categoria,
        SUM(ord.price) AS Suma
@@ -252,7 +262,7 @@ ON ord.product_id = pro.product_id
 GROUP BY pro.product_category_name
 ORDER BY SUM(ord.price) DESC;
 
--- Q13. ¿Qué 5 categorías tienen mayor participación en los ingresos?
+-- Q14. ¿Qué 5 categorías tienen mayor participación en los ingresos?
 SELECT TOP 5
        Categorias.product_category_name AS Categoria,
        Categorias.Ingresos,
@@ -270,7 +280,7 @@ FROM( SELECT pro.product_category_name,
 ) AS Categorias
 ORDER BY Categorias.Ingresos DESC;
 
--- Q14. ¿Cuáles son las 3 principales categorías por ingresos de cada mes?
+-- Q15. ¿Cuáles son las 3 principales categorías por ingresos de cada mes?
 WITH cte_PIngresos AS(
      SELECT YEAR(ord.order_purchase_timestamp) AS Año,
        MONTH(ord.order_purchase_timestamp) AS Mes,
@@ -296,13 +306,13 @@ WHERE Ranking <= 3
 ORDER BY Año,Mes;
 
 --CLIENTES-------------------------------------
--- Q15. ¿Cuántos clientes únicos realizaron compras?
+-- Q16. ¿Cuántos clientes únicos realizaron compras?
 SELECT COUNT(DISTINCT c.customer_unique_id) AS Cantidad
 FROM dbo.olist_orders_dataset_clean$ AS o
 INNER JOIN dbo.olist_customers_dataset_clean$ AS c
     ON o.customer_id = c.customer_id;
 
--- Q16. ¿Cuántos clientes nuevos hubo por mes?
+-- Q17. ¿Cuántos clientes nuevos hubo por mes?
 WITH cte_PrimeraCompra AS(
      SELECT 
            c.customer_unique_id,
@@ -321,7 +331,7 @@ GROUP BY
     MONTH(PrimeraCompra)
 ORDER BY Año, Mes;
 
--- Q17. ¿Cuántos clientes realizaron una sola compra?
+-- Q18. ¿Cuántos clientes realizaron una sola compra?
 SELECT COUNT(*) AS "Clientes con una sola compra"
 FROM (
     SELECT
@@ -334,7 +344,7 @@ FROM (
     HAVING COUNT(o.order_id) = 1
 ) AS ClientesUnaCompra;
 
--- Q18. ¿Cuántos clientes son recurrentes?
+-- Q19. ¿Cuántos clientes son recurrentes?
 SELECT COUNT(*) AS "Clientes recurrentes"
 FROM (
     SELECT
@@ -347,16 +357,16 @@ FROM (
     HAVING COUNT(o.order_id) > 1
 ) AS ClientesRecurrentes;
 
--- Q19. ¿Cómo se distribuyen los clientes según su gasto?
+-- Q20. ¿Cómo se distribuyen los clientes según su gasto?
 WITH cte_GastoClientes AS (
     SELECT 
         c.customer_unique_id,
-        SUM(det.price) AS GastoTotal
+        SUM(pay.payment_value) AS GastoTotal
     FROM dbo.olist_orders_dataset_clean$ AS ord
     INNER JOIN dbo.olist_customers_dataset_clean$ AS c
         ON ord.customer_id = c.customer_id
-    INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
-        ON ord.order_id = det.order_id
+    INNER JOIN dbo.olist_order_payments_datase_cle$ AS pay
+        ON ord.order_id = pay.order_id
     GROUP BY c.customer_unique_id
 ),
 cte_Percentiles AS (
@@ -397,14 +407,14 @@ ORDER BY
         WHEN 'Medio' THEN 2
         WHEN 'Alto' THEN 3
     END;
+
 --VENDEDORES-------------------------------------
--- Q20. ¿Cuántos vendedores realizaron ventas?
+-- Q21. ¿Cuántos vendedores realizaron ventas?
 SELECT COUNT(DISTINCT seller_id) AS "N° Vendedores"
 FROM dbo.olist_order_items_dataset_clean$;
 
--- Q21. ¿Cuáles son los 10 vendedores que generan mayores ingresos?
-SELECT TOP 10
-       ven.seller_id,
+-- Q22. ¿Cuáles son los 6 vendedores que generan mayores ingresos?
+SELECT TOP 6     
        ven.seller_city AS Ciudad,
        ven.seller_state AS Estado,
        SUM(ord.price) AS Ingreso
@@ -416,9 +426,8 @@ GROUP BY ven.seller_id,
          ven.seller_state
 ORDER BY SUM(ord.price) DESC;
 
--- Q22. ¿Qué 5 vendedores tienen mayor cantidad de pedidos?
+-- Q23. ¿Cuáles son los 5 vendedores tienen mayor cantidad de pedidos?
 SELECT TOP 5
-       ven.seller_id,
        ven.seller_city AS Ciudad,
        ven.seller_state AS Estado,
        COUNT(DISTINCT ord.order_id) AS Cantidad
@@ -430,9 +439,9 @@ GROUP BY ven.seller_id,
          ven.seller_state
 ORDER BY COUNT(DISTINCT ord.order_id) DESC;
 
--- Q23. ¿Qué porcentaje de los ingresos totales generan los 5 principales vendedores?
+-- Q24. ¿Qué porcentaje de los ingresos totales generan los 5 principales vendedores?
 WITH cte_IngresosPorVendedor AS(
-     SELECT ven.seller_id,
+     SELECT 
             ven.seller_city AS Ciudad,
             ven.seller_state AS Estado,
             SUM(ord.price) AS Ingreso
@@ -452,7 +461,7 @@ FROM cte_IngresosPorVendedor
 ORDER BY Porcentaje DESC;
 
 ------------GEOGRAFÍA--------------------------------------------
--- Q24. ¿Los 5 estados que concentran mayor cantidad de clientes?
+-- Q25. ¿Cuáles son los 5 estados que concentran mayor cantidad de clientes?
 SELECT  TOP 5
         customer_state AS Estados,
         COUNT(DISTINCT customer_unique_id) AS Cantidad
@@ -460,10 +469,10 @@ FROM dbo.olist_customers_dataset_clean$
 GROUP BY customer_state
 ORDER BY Cantidad DESC;
 
--- Q25. ¿Los 5 estados que concentran mayor cantidad de pedidos e ingresos?
+-- Q26. ¿Cuáles son los 5 estados que concentran mayor cantidad de pedidos e ingresos?
 SELECT TOP 5
        cli.customer_state AS Estados,
-       COUNT(DISTINCT ord.order_id) AS Cantidad,
+       COUNT(DISTINCT ord.order_id) AS Cantidad_Pedidos,
        SUM(det.price) AS Ingresos
 FROM dbo.olist_orders_dataset_clean$ AS ord
 INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
@@ -471,9 +480,9 @@ ON ord.customer_id = cli.customer_id
 INNER JOIN dbo.olist_order_items_dataset_clean$ AS det
 ON ord.order_id = det.order_id
 GROUP BY cli.customer_state
-ORDER BY Cantidad DESC, Ingresos DESC;
+ORDER BY Cantidad_Pedidos DESC, Ingresos DESC;
 
--- Q26. ¿Qué estados concentran mayor cantidad de vendedores?
+-- Q27. ¿Cuáles son los 5 estados que concentran mayor cantidad de vendedores?
 SELECT  TOP 5
         seller_state AS Estados,
         COUNT(seller_id) AS Cantidad
@@ -481,7 +490,7 @@ FROM dbo.olist_sellers_dataset_clean$
 GROUP BY seller_state
 ORDER BY COUNT(seller_id) DESC;
 
--- Q27. ¿Qué estados presentan alta demanda frente a una baja oferta de vendedores?
+-- Q28. ¿Cuáles son los 5 estados que presentan alta demanda frente a una baja oferta de vendedores?
 WITH cte_PedidosEstado AS(
        SELECT cli.customer_state AS Estado,
               COUNT(DISTINCT ord.order_id) AS "N° Pedidos"
@@ -499,7 +508,8 @@ cte_VendedoresEstado AS(
        ON det.seller_id = ven.seller_id
        GROUP BY ven.seller_state
 )
-SELECT Es_pe.Estado,
+SELECT TOP 5 
+       Es_pe.Estado,
        "N° Pedidos",
        "N° Vendedores",
        CAST("N° Pedidos" AS DECIMAL(10,2)) / "N° Vendedores" AS Demanda_por_vendedor
@@ -509,15 +519,16 @@ ON Es_pe.Estado = Es_ven.Estado
 ORDER BY Demanda_por_vendedor DESC;
 
 ------------LOGÍSTICA Y OPERACIONES---------------------------
--- Q28. ¿Cuál es el tiempo promedio de entrega de los pedidos entregados?
+-- Q29. ¿Cuál es el tiempo promedio de entrega de los pedidos entregados?
 SELECT AVG(DATEDIFF(
                 DAY,
                 order_purchase_timestamp,
                 order_delivered_customer_date)
           ) AS "Tiempo Promedio de Entrega (días)"
-FROM dbo.olist_orders_dataset_clean$;
+FROM dbo.olist_orders_dataset_clean$
+WHERE order_delivered_customer_date IS NOT NULL;
 
--- Q29. ¿Qué porcentaje de los pedidos entregados presentó retraso respecto a la fecha estimada?
+-- Q30. ¿Qué porcentaje de los pedidos entregados presentó retraso respecto a la fecha estimada?
 SELECT *,
        CAST(Entrega_Tarde AS DECIMAL(10,2)) 
        / NULLIF(Pedidos_Entregados, 0) * 100 AS Porcentaje
@@ -537,15 +548,17 @@ FROM (
       AND order_estimated_delivery_date IS NOT NULL
 ) AS Entregas;
 
--- Q30. ¿Cuántos días de retraso tienen en promedio los pedidos tardíos?
+-- Q31. ¿Cuántos días de retraso tienen en promedio los pedidos tardíos?
 SELECT AVG(DATEDIFF(
                 DAY, 
                 order_estimated_delivery_date, 
-                order_delivered_customer_date)) AS Promedio
+                order_delivered_customer_date
+          )
+       ) AS "Retraso Promedio (días)"
 FROM dbo.olist_orders_dataset_clean$
 WHERE order_delivered_customer_date > order_estimated_delivery_date;
 
--- Q31. ¿Qué 5 estados presentan el mayor tiempo promedio de entrega?
+-- Q32. ¿Cuáles son los 5 estados que presentan el mayor tiempo promedio de entrega?
 SELECT TOP 5
        cli.customer_state AS Estado,
        AVG(DATEDIFF(
@@ -555,10 +568,11 @@ SELECT TOP 5
 FROM dbo.olist_orders_dataset_clean$ AS ord
 INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
 ON ord.customer_id = cli.customer_id
+WHERE ord.order_delivered_customer_date IS NOT NULL
 GROUP BY cli.customer_state
 ORDER BY Promedio_Entrega_Tiempo DESC;
 
--- Q32. ¿Cuál es el tiempo promedio de entrega de los pedidos asociados a cada vendedor?
+-- Q33. ¿Cuáles son los 5 vendedores que presentan el mayor tiempo promedio de entrega?
 WITH cte_PedidoVendedor AS(
     SELECT DISTINCT
            det.seller_id,
@@ -581,7 +595,7 @@ FROM cte_PedidoVendedor
 GROUP BY seller_id
 ORDER BY Tiempo_Promedio_Entrega DESC;
 
--- Q33. ¿Cuál es la cantidad y porcentaje de pedidos según su estado?
+-- Q34. ¿Cuál es la cantidad y porcentaje de pedidos según su estado?
 SELECT *,
        (CAST(EstadosPedidos.Cantidad AS DECIMAL(10,2)) / (
                    SELECT COUNT(*) AS Cantidad
@@ -593,7 +607,7 @@ FROM (SELECT order_status AS Estado,
       GROUP BY order_status) AS EstadosPedidos
 ORDER BY Cantidad DESC;
 
--- Q34. ¿Cómo evolucionan las cancelaciones de pedidos a lo largo del tiempo?
+-- Q35. ¿Cómo evolucionan las cancelaciones de pedidos a lo largo del tiempo?
 WITH cte_Cancelados AS(
        SELECT YEAR(order_purchase_timestamp) AS Año,
               MONTH(order_purchase_timestamp) AS Mes,
@@ -627,18 +641,18 @@ ORDER BY
     C.Mes;
 
 ------------CALIDAD Y SATISFACCIÓN---------------------------
--- Q35. ¿Cuál es la puntuación promedio de las reviews?
+-- Q36. ¿Cuál es la puntuación promedio de las reviews?
 SELECT AVG(review_score) AS Promedio
 FROM dbo.olist_order_review_clean$;
 
--- Q36. ¿Cómo se distribuyen las puntuaciones de 1 a 5?
+-- Q37. ¿Cómo se distribuyen las puntuaciones de 1 a 5?
 SELECT review_score AS Puntuacion, 
        COUNT(review_score) AS Cantidad
 FROM dbo.olist_order_review_clean$
 GROUP BY review_score
 ORDER BY review_score;
 
--- Q37. ¿Cuáles son las 5 categorías asociadas a los pedidos con mejores valoraciones?
+-- Q38. ¿Cuáles son las 5 categorías asociadas a los pedidos con mejores valoraciones?
 SELECT TOP 5
        pro.product_category_name AS Nombre,
        AVG(res.review_score) AS Promedio
@@ -650,7 +664,7 @@ ON det.order_id = res.order_id
 GROUP BY pro.product_category_name
 ORDER BY Promedio DESC;
 
--- Q38. ¿Cuáles son las 5 categorías asociadas a los pedidos con peores valoraciones?
+-- Q39. ¿Cuáles son las 5 categorías asociadas a los pedidos con peores valoraciones?
 SELECT TOP 5
        pro.product_category_name AS Nombre,
        AVG(  res.review_score) AS Promedio
@@ -662,7 +676,7 @@ ON det.order_id = res.order_id
 GROUP BY pro.product_category_name
 ORDER BY Promedio ASC;
 
--- Q39. ¿Cómo varía la puntuación promedio de las reseñas según el estado de entrega del pedido?
+-- Q40. ¿Cómo varía la puntuación promedio de las reseñas según el estado de entrega del pedido?
 WITH cte_Retrasos AS(
      SELECT CASE
                 WHEN order_delivered_customer_date > order_estimated_delivery_date 
@@ -678,6 +692,6 @@ WITH cte_Retrasos AS(
 )
 SELECT
     EstadoEntrega,
-    AVG(review_score) AS Promedio
+    AVG(review_score) AS Puntuacion_Promedio
 FROM cte_Retrasos
 GROUP BY EstadoEntrega;
