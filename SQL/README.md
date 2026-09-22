@@ -722,52 +722,265 @@ FROM (
 
 **Insight:** La mayoría de los pedidos se entregó dentro o antes de la fecha estimada, mientras que aproximadamente 8 de cada 100 pedidos registraron retraso.
 
-## Q31. 
+## Q31. ¿Cuántos días de retraso tienen en promedio los pedidos tardíos?
 
 ```sql
-
+SELECT AVG(DATEDIFF(
+                DAY, 
+                order_estimated_delivery_date, 
+                order_delivered_customer_date
+          )
+       ) AS "Retraso Promedio (días)"
+FROM dbo.olist_orders_dataset_clean$
+WHERE order_delivered_customer_date > order_estimated_delivery_date;
 ```
 
-**Hallazgo:**
+**Hallazgo:** Los pedidos que fueron entregados después de la fecha estimada presentaron un **retraso promedio de 8 días**.
 
-**Insight:**
-
-## Q32. 
+## Q32. ¿Cuáles son los 5 estados que presentan el mayor tiempo promedio de entrega?
 
 ```sql
-
+SELECT TOP 5
+       cli.customer_state AS Estado,
+       AVG(DATEDIFF(
+                DAY,
+                order_purchase_timestamp,
+                order_delivered_customer_date)) AS Promedio_Entrega_Tiempo
+FROM dbo.olist_orders_dataset_clean$ AS ord
+INNER JOIN dbo.olist_customers_dataset_clean$ AS cli
+ON ord.customer_id = cli.customer_id
+WHERE ord.order_delivered_customer_date IS NOT NULL
+GROUP BY cli.customer_state
+ORDER BY Promedio_Entrega_Tiempo DESC;
 ```
+| Ranking | Estado | Tiempo promedio de entrega |
+| ------: | ------ | -------------------------: |
+|       1 | RR     |                    29 días |
+|       2 | AP     |                    27 días |
+|       3 | AM     |                    26 días |
+|       4 | AL     |                    24 días |
+|       5 | PA     |                    23 días |
 
-**Hallazgo:**
+**Hallazgo:** **Roraima (RR)** presenta el mayor tiempo promedio de entrega, con **29 días**, seguido de **Amapá (AP)** con **27 días**, **Amazonas (AM)** con **26 días**, **Alagoas (AL)** con **24 días** y **Pará (PA)** con **23 días**.
 
-**Insight:**
+**Insight:** Los estados del top 5 presentan tiempos promedio de entrega superiores al resto de estados analizados, con períodos que alcanzan hasta **29 días**. Estos resultados permiten identificar regiones que requieren un análisis más detallado del desempeño logístico.
 
-## Q33. 
+## Q33. ¿Cuáles son los 5 vendedores que presentan el mayor tiempo promedio de entrega?
 
 ```sql
-
+WITH cte_PedidoVendedor AS(
+    SELECT DISTINCT
+           det.seller_id,
+           det.order_id,
+           DATEDIFF(
+               DAY,
+               ord.order_purchase_timestamp,
+               ord.order_delivered_customer_date
+           ) AS TiempoEntrega
+    FROM dbo.olist_order_items_dataset_clean$ AS det
+    INNER JOIN dbo.olist_orders_dataset_clean$ AS ord
+        ON det.order_id = ord.order_id
+    WHERE ord.order_purchase_timestamp IS NOT NULL
+      AND ord.order_delivered_customer_date IS NOT NULL
+)
+SELECT TOP 5
+       seller_id,
+       AVG(TiempoEntrega) AS Tiempo_Promedio_Entrega
+FROM cte_PedidoVendedor
+GROUP BY seller_id
+ORDER BY Tiempo_Promedio_Entrega DESC;
 ```
+| Ranking | Seller ID                        | Tiempo promedio de entrega |
+| ------: | -------------------------------- | -------------------------: |
+|       1 | df683dfda87bf71ac3fc63063fba369d |               **190 días** |
+|       2 | 8e670472e453ba34a379331513d6aab1 |                **86 días** |
+|       3 | 586a871d4f1221763fddb6ceefdeb95e |                **69 días** |
+|       4 | 4fb41dff7c50136976d1a5cf004a42e2 |                **66 días** |
+|       5 | 8629a7efec1aab257e58cda559f03ba7 |                **59 días** |
 
-**Hallazgo:**
+**Hallazgo:** Los cinco vendedores con mayor tiempo promedio de entrega presentan valores entre **59 y 190 días**. El vendedor registra el promedio más alto, con **190 días**, seguido por con **86 días**.
 
-**Insight:**
-
-## Q34. 
+## Q34. ¿Cuál es la cantidad y porcentaje de pedidos según su estado?
 
 ```sql
-
+SELECT *,
+       (CAST(EstadosPedidos.Cantidad AS DECIMAL(10,2)) / (
+                   SELECT COUNT(*) AS Cantidad
+                   FROM dbo.olist_orders_dataset_clean$
+                   )) * 100 AS Porcentaje
+FROM (SELECT order_status AS Estado,
+             COUNT(*) AS Cantidad
+      FROM dbo.olist_orders_dataset_clean$
+      GROUP BY order_status) AS EstadosPedidos
+ORDER BY Cantidad DESC;
 ```
+| Estado      |   Cantidad |  Porcentaje |
+| ----------- | ---------: | ----------: |
+| Delivered   |     96,478 |      97.02% |
+| Shipped     |      1,107 |       1.11% |
+| Canceled    |        625 |       0.63% |
+| Unavailable |        609 |       0.61% |
+| Invoiced    |        314 |       0.32% |
+| Processing  |        301 |       0.30% |
+| Created     |          5 |       0.01% |
+| Approved    |          2 |       0.00% |
+| **Total**   | **99,441** | **100.00%** |
 
-**Hallazgo:**
+**Hallazgo:** El **97.02%** de los pedidos fueron entregados, con **96,478 registros**. Los estados **Shipped**, **Canceled** y **Unavailable** representan porcentajes considerablemente menores, con **1.11%, 0.63% y 0.61%**, respectivamente.
 
-**Insight:**
+**Insight:** La distribución muestra una alta concentración de pedidos en el estado Delivered, mientras que los estados asociados a cancelación, indisponibilidad y procesos pendientes representan una proporción reducida del total de pedidos.
 
-## Q35. 
+## Q35. ¿Cómo evolucionan las cancelaciones de pedidos a lo largo del tiempo?
 
 ```sql
-
+WITH cte_Cancelados AS(
+       SELECT YEAR(order_purchase_timestamp) AS Año,
+              MONTH(order_purchase_timestamp) AS Mes,
+              COUNT(order_id) AS Cancelados
+       FROM dbo.olist_orders_dataset_clean$
+       WHERE order_status = 'Canceled'
+       GROUP BY YEAR(order_purchase_timestamp),
+                MONTH(order_purchase_timestamp)
+),
+cte_Totales AS(
+       SELECT YEAR(order_purchase_timestamp) AS Año,
+              MONTH(order_purchase_timestamp) AS Mes,
+              COUNT(order_id) AS TotalPedidos
+       FROM dbo.olist_orders_dataset_clean$
+       GROUP BY YEAR(order_purchase_timestamp),
+                MONTH(order_purchase_timestamp)
+)
+SELECT
+    C.Año,
+    C.Mes,
+    C.Cancelados,
+    T.TotalPedidos,
+    CAST(C.Cancelados AS DECIMAL(10,2))
+        / T.TotalPedidos * 100 AS Porcentaje_Cancelacion
+FROM cte_Cancelados AS C
+INNER JOIN cte_Totales AS T
+    ON C.Año = T.Año
+    AND C.Mes = T.Mes
+ORDER BY
+    C.Año,
+    C.Mes;
 ```
 
-**Hallazgo:**
+**Hallazgo:** La tasa mensual de cancelación se mantiene generalmente por debajo del **1.3%** durante **2017 y 2018**. El valor más alto dentro de los meses con volúmenes normales se registra en **Agosto** de **2018**, con **1.29%**, seguido de **Marzo** de **2017** con **1.23%** y **Febrero** de **2018** con **1.09%**.
 
-**Insight:**
+**Insight:** La tasa de cancelación presenta niveles relativamente bajos durante la mayor parte del período analizado. Los valores excepcionalmente altos de septiembre y octubre de 2018 deben interpretarse con cautela, debido al reducido número de pedidos registrados en esos meses.
+
+## Q36. ¿Cuál es la puntuación promedio de las reviews?
+
+```sql
+SELECT AVG(review_score) AS Promedio
+FROM dbo.olist_order_review_clean$;
+```
+
+**Hallazgo:** La puntuación **promedio** de las reviews es de **4.11 sobre 5**, considerando las valoraciones registradas en el período analizado.
+
+## Q37. ¿Cómo se distribuyen las puntuaciones de 1 a 5?
+
+```sql
+SELECT review_score AS Puntuacion, 
+       COUNT(review_score) AS Cantidad
+FROM dbo.olist_order_review_clean$
+GROUP BY review_score
+ORDER BY review_score;
+```
+| Puntuación | Cantidad |
+| ---------: | -------: |
+|          1 |   10,242 |
+|          2 |    2,875 |
+|          3 |    7,715 |
+|          4 |   18,368 |
+|          5 |   54,787 |
+
+**Hallazgo:** La puntuación de **5 estrellas** concentra la mayor cantidad de reviews, con **54,787 valoraciones**, seguida de **4 estrellas** con **18,368**. Las puntuaciones de 1, 2 y 3 estrellas presentan volúmenes considerablemente menores.
+
+**Insight:** La distribución de las valoraciones se concentra principalmente en las puntuaciones altas, especialmente en 5 estrellas, mientras que las valoraciones bajas representan una proporción menor del total de reviews.
+
+## Q38. ¿Cuáles son las 5 categorías asociadas a los pedidos con mejores valoraciones?
+
+```sql
+SELECT TOP 5
+       pro.product_category_name AS Nombre,
+       AVG(res.review_score) AS Promedio
+FROM dbo.olist_order_items_dataset_clean$ AS det
+INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+ON det.product_id = pro.product_id
+INNER JOIN dbo.olist_order_review_clean$ AS res
+ON det.order_id = res.order_id
+GROUP BY pro.product_category_name
+ORDER BY Promedio DESC;
+```
+| Ranking | Categoría                     | Puntuación promedio |
+| ------: | ----------------------------- | ------------------: |
+|       1 | Cds Dvds Musicais             |            **4.64** |
+|       2 | Flores                        |            **4.55** |
+|       3 | Livros Importados             |            **4.53** |
+|       4 | Fashion Roupa Infanto Juvenil |            **4.50** |
+|       5 | Livros Interesse Geral        |            **4.47** |
+
+**Hallazgo:** Las cinco categorías con mayor puntuación promedio presentan valoraciones entre **4.47** y **4.64** sobre 5. **Cds Dvds Musicais** registra el promedio más alto con **4.64 puntuación promedio**, seguido de **Flores** con **4.55 puntuación promedio** y **Livros Importados** con **4.53 puntuación promedio**.
+
+**Insight:** Las categorías del top 5 presentan una valoración promedio elevada, lo que evidencia una percepción favorable entre los clientes que registraron reviews asociadas a estas categorías.
+
+## Q39. ¿Cuáles son las 5 categorías asociadas a los pedidos con peores valoraciones?
+
+```sql
+SELECT TOP 5
+       pro.product_category_name AS Nombre,
+       AVG(  res.review_score) AS Promedio
+FROM dbo.olist_order_items_dataset_clean$ AS det
+INNER JOIN dbo.olist_products_dataset_clean$ AS pro
+ON det.product_id = pro.product_id
+INNER JOIN dbo.olist_order_review_clean$ AS res
+ON det.order_id = res.order_id
+GROUP BY pro.product_category_name
+ORDER BY Promedio ASC;
+```
+| Ranking | Categoría                                     | Puntuación promedio |
+| ------: | --------------------------------------------- | ------------------: |
+|       1 | Seguros E Servicos                            |            **2.50** |
+|       2 | Portateis Cozinha E Preparadores De Alimentos |            **3.08** |
+|       3 | Fraldas Higiene                               |            **3.26** |
+|       4 | Pc Gamer                                      |            **3.33** |
+|       5 | Moveis Escritorio                             |            **3.56** |
+
+**Hallazgo:** Las cinco categorías con menor puntuación promedio presentan valoraciones entre **2.50 de puntuación promedio** y **3.56 de puntuación promedio** sobre 5. **Seguros E Servicos** registra el promedio más bajo, con **2.50 puntuación promedio**, seguido de **Portateis Cozinha E Preparadores De Alimentos** con **3.08 de puntuación promedio** y **Fraldas Higiene** con **3.26 de puntuación promedio**.
+
+Insight: Estas categorías presentan las valoraciones promedio más bajas del conjunto analizado, lo que permite identificar segmentos que requieren un análisis más detallado de la experiencia del cliente.
+
+**Insight:** 
+
+## Q40. ¿Cómo varía la puntuación promedio de las reseñas según el estado de entrega del pedido?
+
+```sql
+WITH cte_Retrasos AS(
+     SELECT CASE
+                WHEN order_delivered_customer_date > order_estimated_delivery_date 
+                     THEN 'Tarde'
+                ELSE 'A Tiempo'
+            END AS EstadoEntrega,
+            res.review_score
+     FROM dbo.olist_orders_dataset_clean$ AS ord 
+     INNER JOIN dbo.olist_order_review_clean$ AS res
+     ON ord.order_id = res.order_id
+     WHERE order_delivered_customer_date IS NOT NULL
+     AND order_estimated_delivery_date IS NOT NULL
+)
+SELECT
+    EstadoEntrega,
+    AVG(review_score) AS Puntuacion_Promedio
+FROM cte_Retrasos
+GROUP BY EstadoEntrega;
+```
+| Estado de entrega | Puntuación promedio |
+| ----------------- | ------------------: |
+| A Tiempo          |            **4.32** |
+| Tarde             |            **2.59** |
+
+**Hallazgo:** Los **pedidos entregados a tiempo** presentan una **puntuación promedio de 4.32** sobre 5, mientras que los **pedidos entregados con retraso** alcanzan un **promedio de 2.59**. Esto representa una **diferencia** de aproximadamente **1.72** puntos en la valoración promedio.
+
+**Insight:** Los resultados muestran una asociación clara entre el estado de entrega y la valoración registrada por los clientes, ya que los pedidos entregados tarde presentan una puntuación promedio considerablemente menor. Esto evidencia que el cumplimiento de los tiempos estimados constituye un aspecto relevante de la experiencia del cliente.
