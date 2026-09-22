@@ -36,4 +36,4 @@ Debido al tamaño del archivo `.pbix`, el proyecto se encuentra alojado externam
 
 📊 **[Acceder al archivo Power BI](https://drive.google.com/drive/folders/1KDLEIunTeRGzeqDSakrVs7srGsmk3k0U?usp=sharing)**
 
-> El archivo requiere Power BI Desktop para su apertura y exploración.
+> El archivo requiere descargar Power BI Desktop para su apertura y exploración.
